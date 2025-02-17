@@ -13,8 +13,9 @@ import (
 
 var (
 	ParamsPath    string = "/data/params/d"
-	MemParamsPath string = "/dev/shm/params/d"
-	BasePath      string = GetBasePath()
+	MemParamsPath string = "/dev/shm/params/d" // Original line - commented out for macOS testing
+	// MemParamsPath string = "test_params/d" //<--- New line - relative path for macOS testing
+	BasePath string = GetBasePath()
 )
 
 // Params
@@ -39,6 +40,8 @@ var (
 	MAPD_LOG_LEVEL_PERSIST    = ParamPath("MapdLogLevel", false)
 	MAPD_PRETTY_LOG           = ParamPath("MapdPrettyLog", true)
 	MAPD_PRETTY_LOG_PERSIST   = ParamPath("MapdPrettyLog", false)
+	MAP_STOP_SIGNS            = ParamPath("MapStopSigns", true)     // Current stop signs
+	NEXT_MAP_STOP_SIGNS       = ParamPath("NextMapStopSigns", true) // Next stop signs
 )
 
 // exists returns whether the given file or directory exists
@@ -54,6 +57,7 @@ func Exists(path string) (bool, error) {
 }
 
 func GetBasePath() string {
+	//comment on macOS for testing
 	exists, err := Exists("/data/media/0")
 	logde(errors.Wrap(err, "could not check if media directory exists"))
 	if exists {

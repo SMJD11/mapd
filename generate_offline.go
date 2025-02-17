@@ -34,12 +34,18 @@ type TmpWay struct {
 	Nodes            []TmpNode
 }
 
+type TmpStopSign struct {
+	Latitude  float64
+	Longitude float64
+}
+
 type Area struct {
-	MinLat float64
-	MinLon float64
-	MaxLat float64
-	MaxLon float64
-	Ways   []TmpWay
+	MinLat    float64
+	MinLon    float64
+	MaxLat    float64
+	MaxLon    float64
+	Ways      []TmpWay
+	StopSigns []TmpStopSign
 }
 
 var (
@@ -50,6 +56,7 @@ var (
 )
 
 func GetBaseOpPath() string {
+	//comment out for Macos testing
 	exists, err := Exists("/data/media/0")
 	logde(err)
 	if exists {
@@ -79,6 +86,7 @@ func CreateBoundsDir(minLat float64, minLon float64, maxLat float64, maxLon floa
 	group_lat_directory := int(math.Floor(minLat/float64(GROUP_AREA_BOX_DEGREES))) * GROUP_AREA_BOX_DEGREES
 	group_lon_directory := int(math.Floor(minLon/float64(GROUP_AREA_BOX_DEGREES))) * GROUP_AREA_BOX_DEGREES
 	dir := fmt.Sprintf("%s/%d/%d", BOUNDS_DIR, group_lat_directory, group_lon_directory)
+	log.Debug().Msgf("Creating directory: %s", dir)
 	err := os.MkdirAll(dir, 0o775)
 	return errors.Wrap(err, "could not create bounds directory")
 }
@@ -104,6 +112,7 @@ func GenerateAreas() []Area {
 			a.MinLon = j
 			a.MaxLat = i + AREA_BOX_DEGREES
 			a.MaxLon = j + AREA_BOX_DEGREES
+			a.StopSigns = []TmpStopSign{} // ADD THIS LINE - Initialize StopSigns slice
 			index += 1
 		}
 	}
@@ -136,6 +145,21 @@ func GenerateOffline(minGenLat int, minGenLon int, maxGenLat int, maxGenLon int,
 		switch o := scanner.Object(); o.(type) {
 		case *osm.Way:
 			way = o.(*osm.Way)
+		case *osm.Node: // ADD THIS CASE BLOCK
+			node := o.(*osm.Node)
+			tags := node.TagMap()
+			if tags["highway"] == "stop" {
+				tmpStopSign := TmpStopSign{
+					Latitude:  node.Lat,
+					Longitude: node.Lon,
+				}
+				for i := range areas { // Find the correct area and add stop sign
+					if PointInBox(node.Lat, node.Lon, areas[i].MinLat, areas[i].MinLon, areas[i].MaxLat, areas[i].MaxLon) {
+						areas[i].StopSigns = append(areas[i].StopSigns, tmpStopSign)
+						break // Stop sign belongs to one area
+					}
+				}
+			}
 		default:
 			way = nil
 		}
@@ -219,6 +243,16 @@ func GenerateOffline(minGenLat int, minGenLon int, maxGenLat int, maxGenLon int,
 		}
 
 		log.Info().Msg("Writing Area")
+		stopSigns, err := rootOffline.NewStopSigns(int32(len(area.StopSigns))) // ADD THIS BLOCK
+		check(errors.Wrap(err, "could not create stop signs in offline data"))
+
+		for i, stopSign := range area.StopSigns {
+			ss := stopSigns.At(i)
+			location, err := ss.NewLocation()
+			check(errors.Wrap(err, "could not create stop sign location"))
+			location.SetLatitude(stopSign.Latitude)
+			location.SetLongitude(stopSign.Longitude)
+		}
 		ways, err := rootOffline.NewWays(int32(len(area.Ways)))
 		check(errors.Wrap(err, "could not create ways in offline data"))
 		rootOffline.SetMinLat(area.MinLat)

@@ -7,6 +7,8 @@ require (
 	github.com/bradleyjkemp/cupaloy v2.3.0+incompatible
 	github.com/gofrs/flock v0.8.1
 	github.com/paulmach/osm v0.7.1
+	github.com/pkg/errors v0.9.1
+	github.com/rs/zerolog v1.31.0
 )
 
 require (
@@ -17,9 +19,7 @@ require (
 	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/paulmach/orb v0.1.3 // indirect
 	github.com/paulmach/protoscan v0.2.1 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/rs/zerolog v1.31.0 // indirect
 	golang.org/x/sync v0.5.0 // indirect
 	golang.org/x/sys v0.14.0 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect

@@ -30,4 +30,9 @@ struct Offline {
   maxLon @3 :Float64;
   ways @4 :List(Way);
   overlap @5 :Float64;
+  stopSigns @6 :List(StopSign);
+}
+
+struct StopSign {
+  location @0 :Coordinates;
 }

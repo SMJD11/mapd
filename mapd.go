@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"math"
 	"os"
 	"time"
 
@@ -30,6 +31,17 @@ type NextSpeedLimit struct {
 	Latitude   float64 `json:"latitude"`
 	Longitude  float64 `json:"longitude"`
 	Speedlimit float64 `json:"speedlimit"`
+}
+
+type StopSignOutput struct {
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+}
+
+type NextStopSignOutput struct { // ADD THIS STRUCT
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+	Distance  float64 `json:"distance,omitempty"` // Optional: Distance to stop sign
 }
 
 type AdvisoryLimit struct {
@@ -157,6 +169,42 @@ func loop(state *State) {
 	logde(errors.Wrap(err, "could not get curvatures from current state"))
 	target_velocities := GetTargetVelocities(curvatures)
 
+	offlineData := readOffline(state.Data)
+	stopSignList, err := offlineData.StopSigns()
+	logde(errors.Wrap(err, "could not read stop signs from offline data"))
+
+	var nextStopSignOutput NextStopSignOutput
+	minDistance := math.MaxFloat64 // Initialize with a large value
+
+	if err == nil {
+		for i := 0; i < stopSignList.Len(); i++ {
+			stopSign := stopSignList.At(i)
+			location, err := stopSign.Location()
+			if err != nil {
+				logde(errors.Wrap(err, "could not read stop sign location"))
+				continue
+			}
+
+			distance := DistanceToPoint(pos.Latitude*TO_RADIANS, pos.Longitude*TO_RADIANS, location.Latitude()*TO_RADIANS, location.Longitude()*TO_RADIANS) // Using CORRECTLY SCOPED 'pos'
+
+			if distance < QUERY_RADIUS { // Check proximity (QUERY_RADIUS is defined in math.go)
+				bearingToStopSign := Bearing(pos.Latitude, pos.Longitude, location.Latitude(), location.Longitude()) // Using CORRECTLY SCOPED 'pos'
+				bearingDifference := math.Abs(pos.Bearing*TO_RADIANS - bearingToStopSign)                            // Using CORRECTLY SCOPED 'pos'
+				isAhead := math.Cos(bearingDifference) >= 0.5                                                        // Consider stop signs within ~60 degrees ahead
+
+				if isAhead { // Check if stop sign is generally ahead
+					if distance < minDistance { // Find the closest one
+						minDistance = distance
+						nextStopSignOutput = NextStopSignOutput{
+							Latitude:  location.Latitude(),
+							Longitude: location.Longitude(),
+							Distance:  distance,
+						}
+					}
+				}
+			}
+		}
+	}
 	// -----------------  Write data ---------------------
 
 	// -----------------  MTSC Data  -----------------------
@@ -209,6 +257,13 @@ func loop(state *State) {
 	logwe(errors.Wrap(err, "could not write advisory speed limit"))
 
 	// ---------------- Next Data ---------------------
+
+	// ----------------- Next Stop Sign Data --------------------- // REPLACED BLOCK
+
+	data, err = json.Marshal(nextStopSignOutput)
+	logde(errors.Wrap(err, "could not marshal next stop sign"))
+	err = PutParam(NEXT_MAP_STOP_SIGNS, data)
+	logwe(errors.Wrap(err, "could not write next stop sign"))
 
 	if len(state.NextWays) > 0 {
 		hazard, err = state.NextWays[0].Way.Hazard()
