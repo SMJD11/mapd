@@ -9,3 +9,6 @@ filtered.osm.pbf
 planet-latest.osm.pbf
 box.osm.pbf
 map.osm.pbf
+query.geojson
+query(1).geojson
+query2.geojson

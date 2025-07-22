@@ -19,6 +19,13 @@ type TmpNode struct {
 	Latitude  float64
 	Longitude float64
 }
+
+type TmpStopNode struct {
+	Latitude  float64
+	Longitude float64
+	Direction string
+}
+
 type TmpWay struct {
 	Name             string
 	Ref              string
@@ -34,6 +41,7 @@ type TmpWay struct {
 	MaxLon           float64
 	OneWay           bool
 	Nodes            []TmpNode
+	StopNodes        []TmpStopNode
 }
 
 type Area struct {
@@ -115,27 +123,55 @@ func GenerateAreas() []Area {
 func GenerateOffline(minGenLat int, minGenLon int, maxGenLat int, maxGenLon int, generateEmptyFiles bool) {
 	log.Info().Msg("Generating Offline Map")
 	EnsureOfflineMapsDirectories()
-	file, err := os.Open("./map.osm.pbf")
-	check(errors.Wrap(err, "could not open map pbf file"))
-	defer file.Close()
 
-	// The third parameter is the number of parallel decoders to use.
-	scanner := osmpbf.New(context.Background(), file, runtime.GOMAXPROCS(-1))
-	scanner.SkipRelations = true
-	defer scanner.Close()
+	// --- Pass 1: Scan all nodes to find stop signs ---
+	log.Info().Msg("Scanning for stop nodes (Pass 1/2)")
+	stopNodesMap := make(map[osm.NodeID]TmpStopNode)
+
+	nodeFile, err := os.Open("./map.osm.pbf")
+	check(errors.Wrap(err, "could not open map pbf file for node pass"))
+	defer nodeFile.Close()
+
+	nodeScanner := osmpbf.New(context.Background(), nodeFile, runtime.GOMAXPROCS(-1))
+	nodeScanner.SkipWays = true
+	nodeScanner.SkipRelations = true
+	defer nodeScanner.Close()
+
+	for nodeScanner.Scan() {
+		if o, ok := nodeScanner.Object().(*osm.Node); ok {
+			tags := o.TagMap()
+			if val, ok := tags["highway"]; ok && val == "stop" {
+				stopNodesMap[o.ID] = TmpStopNode{
+					Latitude:  o.Lat,
+					Longitude: o.Lon,
+					Direction: tags["direction"], // Corrected line: Directly access the key. It returns "" if not found.
+				}
+			}
+		}
+	}
+	log.Info().Int("count", len(stopNodesMap)).Msg("Found stop nodes")
+
+	// --- Pass 2: Scan ways and associate stop signs ---
+	log.Info().Msg("Scanning ways and building data (Pass 2/2)")
+	wayFile, err := os.Open("./map.osm.pbf")
+	check(errors.Wrap(err, "could not open map pbf file for way pass"))
+	defer wayFile.Close()
+
+	wayScanner := osmpbf.New(context.Background(), wayFile, runtime.GOMAXPROCS(-1))
+	wayScanner.SkipNodes = true // We only need the node references within the ways
+	wayScanner.SkipRelations = true
+	defer wayScanner.Close()
 
 	scannedWays := []TmpWay{}
 	areas := GenerateAreas()
-	index := 0
 	allMinLat := float64(90)
 	allMinLon := float64(180)
 	allMaxLat := float64(-90)
 	allMaxLon := float64(-180)
 
-	log.Info().Msg("Scanning Ways")
-	for scanner.Scan() {
+	for wayScanner.Scan() {
 		var way *osm.Way
-		switch o := scanner.Object(); o.(type) {
+		switch o := wayScanner.Object(); o.(type) {
 		case *osm.Way:
 			way = o.(*osm.Way)
 		default:
@@ -146,6 +182,7 @@ func GenerateOffline(minGenLat int, minGenLon int, maxGenLat int, maxGenLon int,
 			lanes, _ := strconv.ParseUint(tags["lanes"], 10, 8)
 			tmpWay := TmpWay{
 				Nodes:            make([]TmpNode, len(way.Nodes)),
+				StopNodes:        []TmpStopNode{},
 				Name:             tags["name"],
 				Ref:              tags["ref"],
 				Hazard:           tags["hazard"],
@@ -156,7 +193,6 @@ func GenerateOffline(minGenLat int, minGenLon int, maxGenLat int, maxGenLon int,
 				Lanes:            uint8(lanes),
 				OneWay:           tags["oneway"] == "yes",
 			}
-			index++
 
 			minLat := float64(90)
 			minLon := float64(180)
@@ -177,6 +213,11 @@ func GenerateOffline(minGenLat int, minGenLon int, maxGenLat int, maxGenLon int,
 				}
 				tmpWay.Nodes[i].Latitude = n.Lat
 				tmpWay.Nodes[i].Longitude = n.Lon
+
+				// Check if this node is a stop sign
+				if stopNode, ok := stopNodesMap[n.ID]; ok {
+					tmpWay.StopNodes = append(tmpWay.StopNodes, stopNode)
+				}
 			}
 			tmpWay.MinLat = minLat
 			tmpWay.MinLon = minLon
@@ -197,8 +238,9 @@ func GenerateOffline(minGenLat int, minGenLon int, maxGenLat int, maxGenLon int,
 			scannedWays = append(scannedWays, tmpWay)
 		}
 	}
+	wayScanner.Close() // Close the scanner early to free resources
 
-	log.Info().Msg("Finding Bounds")
+	log.Info().Msg("Finding Bounds and writing files")
 	for _, area := range areas {
 		if area.MinLat < float64(minGenLat)-OVERLAP_BOX_DEGREES || area.MinLon < float64(minGenLon)-OVERLAP_BOX_DEGREES || area.MaxLat > float64(maxGenLat)+OVERLAP_BOX_DEGREES || area.MaxLon > float64(maxGenLon)+OVERLAP_BOX_DEGREES {
 			continue
@@ -248,12 +290,24 @@ func GenerateOffline(minGenLat int, minGenLon int, maxGenLat int, maxGenLon int,
 			w.SetAdvisorySpeed(way.MaxSpeedAdvisory)
 			w.SetLanes(way.Lanes)
 			w.SetOneWay(way.OneWay)
+
 			nodes, err := w.NewNodes(int32(len(way.Nodes)))
 			check(errors.Wrap(err, "could not create way nodes"))
 			for j, node := range way.Nodes {
 				n := nodes.At(j)
 				n.SetLatitude(node.Latitude)
 				n.SetLongitude(node.Longitude)
+			}
+
+			// Add the stop nodes
+			stopNodes, err := w.NewStopNodes(int32(len(way.StopNodes)))
+			check(errors.Wrap(err, "could not create stop nodes"))
+			for j, stopNode := range way.StopNodes {
+				sn := stopNodes.At(j)
+				sn.SetLatitude(stopNode.Latitude)
+				sn.SetLongitude(stopNode.Longitude)
+				err = sn.SetDirection(stopNode.Direction)
+				check(errors.Wrap(err, "could not set stop node direction"))
 			}
 		}
 
