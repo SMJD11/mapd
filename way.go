@@ -593,3 +593,88 @@ func NextWays(pos Position, currentWay CurrentWay, offline Offline, isForward bo
 
 	return nextWays, nil
 }
+
+func GetNextStopSign(currentWay CurrentWay, nextWays []NextWayResult, isForward bool) (StopNode, bool, error) {
+	// 1. Check the Current Way
+	if currentWay.Way.HasStopNodes() {
+		wayNodes, err := currentWay.Way.Nodes()
+		if err != nil {
+			return StopNode{}, false, errors.Wrap(err, "could not get nodes for current way")
+		}
+		stopNodes, err := currentWay.Way.StopNodes()
+		if err != nil {
+			return StopNode{}, false, errors.Wrap(err, "could not get stop nodes for current way")
+		}
+
+		// Find the index of the end node of the segment we are on
+		endNodeOfSegment := currentWay.Distance.LineEnd
+		endNodeIndex := -1
+		for i := 0; i < wayNodes.Len(); i++ {
+			node := wayNodes.At(i)
+			if node.Latitude() == endNodeOfSegment.Latitude() && node.Longitude() == endNodeOfSegment.Longitude() {
+				endNodeIndex = i
+				break
+			}
+		}
+
+		if endNodeIndex != -1 {
+			// Check all stop nodes on this way to see if they are ahead
+			for i := 0; i < stopNodes.Len(); i++ {
+				stopNode := stopNodes.At(i)
+
+				// Find which way node this stop sign corresponds to
+				stopNodeIndex := -1
+				for j := 0; j < wayNodes.Len(); j++ {
+					node := wayNodes.At(j)
+					if node.Latitude() == stopNode.Latitude() && node.Longitude() == stopNode.Longitude() {
+						stopNodeIndex = j
+						break
+					}
+				}
+
+				if stopNodeIndex != -1 {
+					isAhead := false
+					if isForward && stopNodeIndex >= endNodeIndex {
+						isAhead = true
+					} else if !isForward && stopNodeIndex <= endNodeIndex {
+						isAhead = true
+					}
+
+					if isAhead {
+						direction, _ := stopNode.Direction()
+						// A blank direction applies to both ways.
+						if (isForward && (direction == "forward" || direction == "")) || (!isForward && (direction == "backward" || direction == "")) {
+							return stopNode, true, nil
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// 2. Check the Next Ways
+	for _, nextWay := range nextWays {
+		if !nextWay.Way.IsValid() || !nextWay.Way.HasStopNodes() {
+			continue
+		}
+
+		stopNodes, err := nextWay.Way.StopNodes()
+		if err != nil || stopNodes.Len() == 0 {
+			continue
+		}
+
+		// The first valid stop sign on the next way is the one we want
+		for i := 0; i < stopNodes.Len(); i++ {
+			stopNode := stopNodes.At(i)
+			direction, _ := stopNode.Direction()
+			nextWayIsForward := nextWay.IsForward
+
+			if (nextWayIsForward && (direction == "forward" || direction == "")) || (!nextWayIsForward && (direction == "backward" || direction == "")) {
+				return stopNode, true, nil
+			}
+		}
+	}
+
+	// 3. No stop sign found
+	return StopNode{}, false, nil
+}

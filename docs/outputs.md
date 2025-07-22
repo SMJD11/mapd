@@ -22,6 +22,18 @@ speedlimit is in m/s. schema:
     "speedlimit": float
 }
 ```
+
+* `NextMapStopSign`: output as json. GPS coordinates are in degrees, and the
+speedlimit is always 0.0 to signify a mandatory stop. If no stop sign is
+upcoming, an empty object {} is published. schema:
+```
+{
+    "latitude": float,
+    "longitude": float,
+    "speedlimit": float
+}
+```
+
 * `MapAdvisorySpeedLimit`: output as json. GPS coordinates are in degrees,
 speedlimit is in m/s. schema:
 ```

@@ -9,18 +9,116 @@ import (
 	math "math"
 )
 
+type StopNode capnp.Struct
+
+// StopNode_TypeID is the unique identifier for the type StopNode.
+const StopNode_TypeID = 0xc0b40994ec2c1dbf
+
+func NewStopNode(s *capnp.Segment) (StopNode, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
+	return StopNode(st), err
+}
+
+func NewRootStopNode(s *capnp.Segment) (StopNode, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
+	return StopNode(st), err
+}
+
+func ReadRootStopNode(msg *capnp.Message) (StopNode, error) {
+	root, err := msg.Root()
+	return StopNode(root.Struct()), err
+}
+
+func (s StopNode) String() string {
+	str, _ := text.Marshal(0xc0b40994ec2c1dbf, capnp.Struct(s))
+	return str
+}
+
+func (s StopNode) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (StopNode) DecodeFromPtr(p capnp.Ptr) StopNode {
+	return StopNode(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s StopNode) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s StopNode) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s StopNode) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s StopNode) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
+func (s StopNode) Latitude() float64 {
+	return math.Float64frombits(capnp.Struct(s).Uint64(0))
+}
+
+func (s StopNode) SetLatitude(v float64) {
+	capnp.Struct(s).SetUint64(0, math.Float64bits(v))
+}
+
+func (s StopNode) Longitude() float64 {
+	return math.Float64frombits(capnp.Struct(s).Uint64(8))
+}
+
+func (s StopNode) SetLongitude(v float64) {
+	capnp.Struct(s).SetUint64(8, math.Float64bits(v))
+}
+
+func (s StopNode) Direction() (string, error) {
+	p, err := capnp.Struct(s).Ptr(0)
+	return p.Text(), err
+}
+
+func (s StopNode) HasDirection() bool {
+	return capnp.Struct(s).HasPtr(0)
+}
+
+func (s StopNode) DirectionBytes() ([]byte, error) {
+	p, err := capnp.Struct(s).Ptr(0)
+	return p.TextBytes(), err
+}
+
+func (s StopNode) SetDirection(v string) error {
+	return capnp.Struct(s).SetText(0, v)
+}
+
+// StopNode_List is a list of StopNode.
+type StopNode_List = capnp.StructList[StopNode]
+
+// NewStopNode creates a new list of StopNode.
+func NewStopNode_List(s *capnp.Segment, sz int32) (StopNode_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1}, sz)
+	return capnp.StructList[StopNode](l), err
+}
+
+// StopNode_Future is a wrapper for a StopNode promised by a client call.
+type StopNode_Future struct{ *capnp.Future }
+
+func (f StopNode_Future) Struct() (StopNode, error) {
+	p, err := f.Future.Ptr()
+	return StopNode(p.Struct()), err
+}
+
 type Way capnp.Struct
 
 // Way_TypeID is the unique identifier for the type Way.
-const Way_TypeID = 0xa4b9c59286b69600
+const Way_TypeID = 0xe96f0c725dd473d2
 
 func NewWay(s *capnp.Segment) (Way, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 72, PointerCount: 4})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 72, PointerCount: 5})
 	return Way(st), err
 }
 
 func NewRootWay(s *capnp.Segment) (Way, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 72, PointerCount: 4})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 72, PointerCount: 5})
 	return Way(st), err
 }
 
@@ -30,7 +128,7 @@ func ReadRootWay(msg *capnp.Message) (Way, error) {
 }
 
 func (s Way) String() string {
-	str, _ := text.Marshal(0xa4b9c59286b69600, capnp.Struct(s))
+	str, _ := text.Marshal(0xe96f0c725dd473d2, capnp.Struct(s))
 	return str
 }
 
@@ -213,12 +311,36 @@ func (s Way) SetMaxSpeedBackward(v float64) {
 	capnp.Struct(s).SetUint64(64, math.Float64bits(v))
 }
 
+func (s Way) StopNodes() (StopNode_List, error) {
+	p, err := capnp.Struct(s).Ptr(4)
+	return StopNode_List(p.List()), err
+}
+
+func (s Way) HasStopNodes() bool {
+	return capnp.Struct(s).HasPtr(4)
+}
+
+func (s Way) SetStopNodes(v StopNode_List) error {
+	return capnp.Struct(s).SetPtr(4, v.ToPtr())
+}
+
+// NewStopNodes sets the stopNodes field to a newly
+// allocated StopNode_List, preferring placement in s's segment.
+func (s Way) NewStopNodes(n int32) (StopNode_List, error) {
+	l, err := NewStopNode_List(capnp.Struct(s).Segment(), n)
+	if err != nil {
+		return StopNode_List{}, err
+	}
+	err = capnp.Struct(s).SetPtr(4, l.ToPtr())
+	return l, err
+}
+
 // Way_List is a list of Way.
 type Way_List = capnp.StructList[Way]
 
 // NewWay creates a new list of Way.
 func NewWay_List(s *capnp.Segment, sz int32) (Way_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 72, PointerCount: 4}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 72, PointerCount: 5}, sz)
 	return capnp.StructList[Way](l), err
 }
 
@@ -233,7 +355,7 @@ func (f Way_Future) Struct() (Way, error) {
 type Coordinates capnp.Struct
 
 // Coordinates_TypeID is the unique identifier for the type Coordinates.
-const Coordinates_TypeID = 0x922b57c60c6a46d1
+const Coordinates_TypeID = 0xbb98485b5b7943a9
 
 func NewCoordinates(s *capnp.Segment) (Coordinates, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
@@ -251,7 +373,7 @@ func ReadRootCoordinates(msg *capnp.Message) (Coordinates, error) {
 }
 
 func (s Coordinates) String() string {
-	str, _ := text.Marshal(0x922b57c60c6a46d1, capnp.Struct(s))
+	str, _ := text.Marshal(0xbb98485b5b7943a9, capnp.Struct(s))
 	return str
 }
 
@@ -313,7 +435,7 @@ func (f Coordinates_Future) Struct() (Coordinates, error) {
 type Offline capnp.Struct
 
 // Offline_TypeID is the unique identifier for the type Offline.
-const Offline_TypeID = 0xcb5ff253617678e0
+const Offline_TypeID = 0xb7b19459e4e55961
 
 func NewOffline(s *capnp.Segment) (Offline, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 40, PointerCount: 1})
@@ -331,7 +453,7 @@ func ReadRootOffline(msg *capnp.Message) (Offline, error) {
 }
 
 func (s Offline) String() string {
-	str, _ := text.Marshal(0xcb5ff253617678e0, capnp.Struct(s))
+	str, _ := text.Marshal(0xb7b19459e4e55961, capnp.Struct(s))
 	return str
 }
 
@@ -437,58 +559,65 @@ func (f Offline_Future) Struct() (Offline, error) {
 	return Offline(p.Struct()), err
 }
 
-const schema_da3a0d9284ca402f = "x\xda\xa4\xd4\xdf\x8b\x1bU\x14\x07\xf0\xef\xf7\xde\xc9\x8f" +
-	"m\x92\xad\xe1\x0e\xe8\x83\x12\x10\x84\xb6\xa2v\xad\x0f\x12" +
-	"\x84\x96\x0aE\x8a`\xaf\xf3\x90G\xb94\x13\x8dfg" +
-	"\xc2$\xee&\x82Xe\x11\x95\x16\xda\xb0J\x0b\x15*" +
-	"\xacPA\xa1J\x91\x16\xba\xb0\xc2*\xa8\xfb\xa2O\"" +
-	"\x08\xfa\xe0?\xe0\x1f\xe0\xc8\xb9K~\xec\x83O}\x9b" +
-	"\xf9\x9c3\xf7\\N\xbe\xe4\xf8=\x9e\x0aVj\xa9\x82" +
-	"\xb2\x0f\x17\x8a\xf9/g^\xaf\xfe\xd0z|\x02\xbbL" +
-	"\x95?u\xea\xa7\x8dI\xad\xf9;\x82\x12`\x1e\xe1\xaf" +
-	"\xe6(\xe5\xe91\xae\x83\xff~\xf2\xed\xfb\x93\xef\xefn" +
-	"\xd9e.\xcd;\x0b\xbe\xf5CN\xcc\x15i=q\x89" +
-	"\x0fj0\xffs\xb4\xe6\xa2\x7f^\xf9Y\xce-,t" +
-	"\xfb\xe3\xfe\x08\xbe1\x7f\xcbw'\xfe\x0aZ\xc4\x13y" +
-	"\xda\xe9\xf4\xbaI\xfc\xa4:\xef\xfaI\xbf\xf9|\x9af" +
-	"\xedn\xe2\x861\x07\xe7H[\xd6\x01\x10\x10\xa8\x1f=" +
-	"\x0b\xd8#\x9a\xf6\x19\xc5:\x19Rp\xe5e\xc0\x1e\xd7" +
-	"\xb4\xcf)\xe6=7\xec\x0e\xdfl\xc7\x00X\x81b\x05" +
-	"\xcc{i\xf2\xaa \x18\xcfl:\x92\xfb#[\x8ec" +
-	"\x19\xf5\xect\x94\x19\xf3\x18\x10\x0d\xa9\x19]\xe0|\x9a" +
-	"y\x9b\x8f\x02\xd1H|\x83\x8aT!\x15`\xde\xe5Y" +
-	" \xba |Q\xda5Cj\xbf\x99&\x10m\x88_" +
-	"\x16\x0fT\xc8\x000\x97\xbc\x7f \xbe)^\xd0!\x0b" +
-	"\x80\xb9\xe2\xfd\xa2\xf8U\xf1b\x10\xb2\x08\x98\x8f\xbd_" +
-	"\x16\xbf.^R\xa1\xdf\xe55>\x0dD\x9b\xe2\xb7\xc4" +
-	"\xcbGB\x96\x01\xf3\x95\xf7\x9b\xe2\xb7\xc5\x97\x8a!\x97" +
-	"\x00\xf353 \xba%~O\xfc\x90\x0ey\x080w" +
-	"\xfd\xf9\xb7\xc5w\xa8\xb8Ry\x81!+\x80\xd9\xf6\x85" +
-	";R\xd8\x95\x0f\xaa\xa5\x90U\xc0|\xc7\xf7\x80hG" +
-	"|O\xbcV\x0eY\x03\xcc\x8f\xfc\x08\x88\xf6\xc4\x7f\xa3" +
-	"\xe2\xe1\xc4\xad\xc6\xacB\xb1\x0a\x96\xb2\xb83}\xceW" +
-	"\xdd(\xea\xc7q{\xe1\x97:\xb9\xdaM^t\xc3\x03" +
-	"\xafi2\x7fu\xa3\x03U7Z\xa86\x92\xb4\x1d\x0f" +
-	"\xb8\x0c\x9e\xd3\xe4\x03\xf3d\x83\x82\x8d\x9eK\xe2\x01\x8b" +
-	"P,\x82\xb9k\xafu\x07i6F\xc3\xdfav\xe6" +
-	"k\xee-\x97\xb5\xa7w<\x99&q\xcb\x8dI(r" +
-	"\xe1\xca<\x93f\xeb.k\xcf#6\xab\x9cv\xe7\xdf" +
-	"\xf0%\xfc_\xd4^\xea4\xfc\xbb\xc4\xed\xa1Y\xb2\xaf" +
-	"5\x01\xbb\xa9io,$\xfbS\xc1\xab\x9avK\xb1" +
-	"\xae\xf6\x93V\xffL\xf0\xba\xa6\xbd)1\xd3>f\xf5" +
-	"\xcf\x05oh\xda/\x15\x19\xf8\x88\xd5\xbf8\x06\xd8-" +
-	"M\xbb#\xf9\x0a|\xbe\xea\xdb\xa7\x01{G\xd3\xee\xaa" +
-	"\xfbZ\xf7\xe1u7\x9eo{\xfa\xdf\xb0\xbf\xebw\xd2" +
-	"\xb58\xeb\xb9\xfe\xb4\xf7\xbf\x00\x00\x00\xff\xff\x06m\xdf" +
-	"\xda"
+const schema_db93c434a5c5d09f = "x\xda\xa4\x94Ah\x1cU\x1c\xc6\xbf\xef\xbd\xd9M\xd2" +
+	"l\xd2\x0eo\x04=\x94\x88\xa7ZT\x1a\xdbS(D" +
+	"Z\x95ZZ\x9b\xd7Qb)\x82\x8f\xccD\x1773" +
+	"\xcb\xec\xdad\xbd\x08\x1e=\x89Fh!\xc5\x08\x09$" +
+	"\x10\xb1\x95\x16\x8bR\xac\x90\"B\x85P*(V\xf0" +
+	"`\xa1\x82\x07\x05\xef+\xff\xd9fv\xb4'\xe9\xed\xbd" +
+	"\xdf\xff\x9b\xf7\xff\xf8\xde\xfb\xcf\xbe]\xea\x19o|\xe4" +
+	"[\x05e\x1f\xadT\xbb\xee\xd4\x9d\xdfN-^\xfc\x02" +
+	"v\x94\x95\xee\xc7[\xd7W\x0fl~\xf83*\x1c\x00" +
+	"\xcc\x0b\xfc\xdcXY\xed?\xcei\x82\xdd\xf5\xc3\x9d\xd3" +
+	"\xa7\x8f\x9c\xfdJ\xd4\xaa\xaf\xf6D\xbc\xaen\x9a\xcbJ" +
+	"V\x17\xd5<\xd8\xfdz\xf7\x13\x7f,\x0e]\xba\xf6\x1f" +
+	"m\xef\xe4\x87\xf4\x97f\xb7\x96\xd5#\xfa3\xb0{\xb3" +
+	"u\xeb\xd5\xac\x96\xfe.\xe2\xa1\x92\xb8\"\x92\xab\xfa\x03" +
+	"s]\xc4\xfb\xbf\xd1'4\x9e\xec\xa6\xb3\xb3\x8dz\x12" +
+	"?\xc5\x19\xd7L\x9a\x13'f\xc7\xf2\xfd\x14i\x1f\xd6" +
+	"\x1e\xe0\x11\xf0\xcfM\x00vQ\xd3.+\xfad@\x81" +
+	"\xe7\x05\x9e\xd5\xb4+\x8a\xbeR\x01\x15\xe0\x7f\"pI" +
+	"\xd3\xae)\xfaZ\x07\xd4\x80\xbf*pY\xd3n(\xd2" +
+	"\x0b\xe8\x01\xfe\xfa^\xc0\xaeh\xdak\x8a~\xc5\x0bX" +
+	"\x01\xfc\xab\x87\x00{E\xd3n*N\xce\xd5\x93c\xae" +
+	"\xcda(\x0e\xa3\xb7M\x93\xfe\xd6-\xfc\xab\xea\x16J" +
+	"\xd5\x9d\xf3\xae\xd3\xe2(8\xa5\xc9]\xfdD@\x81\xef" +
+	"\xa4g\xe2\xac\xe1\x9a\xdb\xea\"\x03\xd5\xcb\xe0p\x9af" +
+	"Q=q\xed\x98-\xc9a\xb0\xc8\xe1\xf1\xa3\x80\xdd\xa3" +
+	"i\x0f\x94r\x18?\x09\xd8}\x9a\xf6\xa0b\xb7\xe1\xda" +
+	"\xf5\xf6[Q\x0c\xa08\xbe\x91&\xaf\x0b\x04\xe3\xfbZ" +
+	"\xde\x8b=lO\xa6\xcd\x17\xd3(\xcf\xbdV\xf4{N" +
+	"\xfa=\xabi\xa7J\xfd\x8eK\xbfc\x9a\xf6\x15E\xde" +
+	"\x8b\xfdea/i\xda\xd7\xfe\x87\x87\xa8\x9e\xc53\xed" +
+	"z\x0a&\xacA\xb1v\xbf\xafi\xc7\x8eX:\xb8m" +
+	"\xc9|\xc4\xbd@\xf8>5\xc3%\xf6]\x99s|\x0c" +
+	"\x08\x17\x85/\xb30f\xce\xf3(\x10.\x09^\x13\xb9" +
+	"f\xfe$\xcc*'\x80pY\xf8\x86pO\xe5\xcf\xc2" +
+	"\xac\xe7|E\xf8\x05\xe1\x15\x9d\xbf\x0c\xf3i\xce\xd7\x84" +
+	"_\x12^\xf5\x02Ve>r\xbe!\xfc\x8a\xf0\x01\x15" +
+	"\xe4Cq\x99O\x03\xe1\x05\xe17\x84\x0f\xee\x098\x08" +
+	"\x98\xefr\xbe)|K\xf8P5\xe0\x10`\xbeg\x06" +
+	"\x847\x84\xff(|\x87\x0e\xb8\x030?\xe4\xe7o\x09" +
+	"\xbfM\xc5\xf1\xe1#\x0c8\x0c\x98\x9f\xf2\xc2-)\xfc" +
+	"*\x1f\xd4\x06\x02\xd6\x00\xf3\x0b\xdf\x05\xc2\xdb\xc2\xef\x0a" +
+	"\x1f\x19\x0c8\x02\x98;|\x0f\x08\xef\x0a\xff[\xf8\xa8" +
+	"\x17p\x140\x7f\xf1$\x10\xfe)\xbc\xa6\x14w&n" +
+	".\xde\xbe\x8d\x81,\x9e-nf\xce-\x84\xcd8\x8e" +
+	"J\xb7\xfa #2\x96\xa4Q\\\x9a\x91\xe2w\xd4\x9b" +
+	"\x91\xb1\x86K\xe2\x16\xabP\xac\x82]\x17\x9d\xa9\xb7\xd2" +
+	"\xac\x83\xb1\xdcCq\xe6\x1b\xeem\x97E\xdb\x1e'\xd3" +
+	"$\x9ev\x1d\x12\x8a,Y\xe6\xf3i6\xef\xb2\xa8\xff" +
+	"\x1c\x8b\xca!7\xf3f^\xea\xd7Z\xed\xde(\x80%" +
+	"{\xc5\x1f\xb0g\xef\x9f\x00\x00\x00\xff\xff\x8f\xb6$\xf6"
 
 func RegisterSchema(reg *schemas.Registry) {
 	reg.Register(&schemas.Schema{
-		String: schema_da3a0d9284ca402f,
+		String: schema_db93c434a5c5d09f,
 		Nodes: []uint64{
-			0x922b57c60c6a46d1,
-			0xa4b9c59286b69600,
-			0xcb5ff253617678e0,
+			0xb7b19459e4e55961,
+			0xbb98485b5b7943a9,
+			0xc0b40994ec2c1dbf,
+			0xe96f0c725dd473d2,
 		},
 		Compressed: true,
 	})

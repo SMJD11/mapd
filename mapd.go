@@ -32,6 +32,13 @@ type NextSpeedLimit struct {
 	Speedlimit float64 `json:"speedlimit"`
 }
 
+// NextStopSign struct to match the desired output format
+type NextStopSign struct {
+	Latitude   float64 `json:"latitude"`
+	Longitude  float64 `json:"longitude"`
+	Speedlimit float64 `json:"speedlimit"`
+}
+
 type AdvisoryLimit struct {
 	StartLatitude  float64 `json:"start_latitude"`
 	StartLongitude float64 `json:"start_longitude"`
@@ -209,6 +216,25 @@ func loop(state *State) {
 	logwe(errors.Wrap(err, "could not write advisory speed limit"))
 
 	// ---------------- Next Data ---------------------
+
+	// --- New Stop Sign Logic ---
+	stopSign, found, err := GetNextStopSign(state.CurrentWay, state.NextWays, state.CurrentWay.OnWay.IsForward)
+	logde(errors.Wrap(err, "could not get next stop sign"))
+	if found {
+		data, err = json.Marshal(NextStopSign{
+			Latitude:   stopSign.Latitude(),
+			Longitude:  stopSign.Longitude(),
+			Speedlimit: 0.0,
+		})
+		logde(errors.Wrap(err, "could not marshal next stop sign"))
+		err = PutParam(NEXT_MAP_STOP_SIGN, data)
+		logwe(errors.Wrap(err, "could not write next stop sign"))
+	} else {
+		// If no stop sign is found, write an empty object
+		err = PutParam(NEXT_MAP_STOP_SIGN, []byte{'{', '}'})
+		logwe(errors.Wrap(err, "could not write empty next stop sign"))
+	}
+	// --- End New Stop Sign Logic ---
 
 	if len(state.NextWays) > 0 {
 		hazard, err = state.NextWays[0].Way.Hazard()

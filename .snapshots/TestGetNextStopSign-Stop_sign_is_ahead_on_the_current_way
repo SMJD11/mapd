@@ -1,0 +1,6 @@
+(main.testResult) {
+  Found: (bool) true,
+  Latitude: (float64) 0,
+  Longitude: (float64) 2,
+  Error: (error) <nil>
+}

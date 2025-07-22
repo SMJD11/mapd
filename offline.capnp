@@ -1,7 +1,13 @@
 using Go = import "/go.capnp";
-@0xda3a0d9284ca402f;
+@0xdb93c434a5c5d09f;
 $Go.package("main");
 $Go.import("offline");
+
+struct StopNode {
+  latitude @0 :Float64;
+  longitude @1 :Float64;
+  direction @2 :Text;
+}
 
 struct Way {
   name @0 :Text;
@@ -18,6 +24,7 @@ struct Way {
   oneWay @11 :Bool;
   maxSpeedForward @12 :Float64;
   maxSpeedBackward @13 :Float64;
+  stopNodes @14 :List(StopNode);
 }
 
 struct Coordinates {
