@@ -198,8 +198,23 @@ func DownloadBounds(bounds Bounds, locationName string) (err error) {
 
 	for i := minLat; i < maxLat; i += GROUP_AREA_BOX_DEGREES {
 		for j := minLon; j < maxLon; j += GROUP_AREA_BOX_DEGREES {
-			filename := fmt.Sprintf("offline/%d/%d.tar.gz", i, j)
-			url := fmt.Sprintf("https://map-data.pfeifer.dev/%s", filename)
+			// ==================================================================
+			// ---             THIS IS THE ONLY PART THAT CHANGED             ---
+			// ==================================================================
+
+			// 1. Define your server configuration.
+			//    Replace these values with your actual GitHub info and the tag of the release you created.
+			const dataVersion = "data-2025-07-22" // e.g., "data-2025-07-22"
+			const githubUser = "SMJD11"
+			const dataRepo = "mapd-data"
+
+			// 2. Construct the UNIQUE filename, matching the upload script's format.
+			filename := fmt.Sprintf("%d_%d.tar.gz", i, j)
+
+			// 3. Construct the final URL pointing to your GitHub Release asset.
+			url := fmt.Sprintf("https://github.com/%s/%s/releases/download/%s/%s", githubUser, dataRepo, dataVersion, filename)
+
+			// ==================================================================
 			outputName := filepath.Join(GetBaseOpPath(), "tmp", filename)
 			err := os.MkdirAll(filepath.Dir(outputName), 0o775)
 			logde(errors.Wrap(err, "failed to make output directory"))

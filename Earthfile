@@ -88,3 +88,12 @@ docker:
 docker-all-archs:
     BUILD --platform=linux/arm64 +docker
     BUILD --platform=linux/amd64 +docker
+
+build-local:
+    FROM +deps
+    ARG GOOS
+    ARG GOARCH
+    COPY *.go .
+    COPY *.json .
+    RUN CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -ldflags="-extldflags=-static -s -w" -o build/mapd
+    SAVE ARTIFACT build/mapd /mapd AS LOCAL build/mapd
