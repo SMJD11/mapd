@@ -36,6 +36,12 @@ type TmpWay struct {
 	Box              m.Box
 	OneWay           bool
 	Nodes            []TmpNode
+	StopSigns        []TmpStopSign
+}
+
+type TmpStopSign struct {
+	Pos       TmpNode
+	Direction offline.Direction
 }
 
 type Area struct {
@@ -123,12 +129,28 @@ func GenerateOffline(s OfflineSettings) {
 	allMaxLat := float64(-90)
 	allMaxLon := float64(-180)
 
+	stopSignNodes := make(map[osm.NodeID]TmpStopSign)
+
 	slog.Info("Scanning Ways")
 	for scanner.Scan() {
 		var way *osm.Way
 		switch o := scanner.Object(); o.(type) {
 		case *osm.Way:
 			way = o.(*osm.Way)
+		case *osm.Node:
+			node := o.(*osm.Node)
+			if node.TagMap()["highway"] == "stop" || node.TagMap()["stop"] == "all" {
+				dirTag := node.TagMap()["direction"]
+				var dir offline.Direction
+				if dirTag == "forward" {
+					dir = offline.Direction_forward
+				} else if dirTag == "backward" {
+					dir = offline.Direction_backward
+				} else {
+					dir = offline.Direction_all
+				}
+				stopSignNodes[node.ID] = TmpStopSign{Pos: TmpNode{Latitude: node.Lat, Longitude: node.Lon}, Direction: dir}
+			}
 		default:
 			way = nil
 		}
@@ -137,6 +159,7 @@ func GenerateOffline(s OfflineSettings) {
 			lanes, _ := strconv.ParseUint(tags["lanes"], 10, 8)
 			tmpWay := TmpWay{
 				Nodes:            make([]TmpNode, len(way.Nodes)),
+				StopSigns:        []TmpStopSign{},
 				Name:             tags["name"],
 				Ref:              tags["ref"],
 				Hazard:           tags["hazard"],
@@ -168,6 +191,10 @@ func GenerateOffline(s OfflineSettings) {
 				}
 				tmpWay.Nodes[i].Latitude = n.Lat
 				tmpWay.Nodes[i].Longitude = n.Lon
+
+				if stopNode, exists := stopSignNodes[n.ID]; exists {
+					tmpWay.StopSigns = append(tmpWay.StopSigns, stopNode)
+				}
 			}
 			tmpWay.Box.MinPos = m.NewPosition(minLat, minLon)
 			tmpWay.Box.MaxPos = m.NewPosition(maxLat, maxLon)
@@ -266,6 +293,18 @@ func GenerateOffline(s OfflineSettings) {
 				n := nodes.At(j)
 				n.SetLatitude(node.Latitude)
 				n.SetLongitude(node.Longitude)
+			}
+
+			stopSigns, err := w.NewStopSigns(int32(len(way.StopSigns)))
+			if err != nil {
+				slog.Error("could not create way stop signs", "error", err)
+				panic("unexpected capnp error, exiting")
+			}
+			for j, stopSign := range way.StopSigns {
+				s := stopSigns.At(j)
+				s.SetLatitude(stopSign.Pos.Latitude)
+				s.SetLongitude(stopSign.Pos.Longitude)
+				s.SetDirection(stopSign.Direction)
 			}
 		}
 

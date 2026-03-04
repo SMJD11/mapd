@@ -25,6 +25,7 @@ type State struct {
 	VisionCurveMA             m.MovingAverage
 	NextAdvisorySpeed         Upcoming[float32]
 	NextHazard                Upcoming[string]
+	NextStopSign              Upcoming[bool]
 }
 
 func (s *State) Init() {
@@ -32,9 +33,9 @@ func (s *State) Init() {
 	s.VisionCurveMA.Init(20)
 	s.NextHazard = NewUpcoming(10, "", checkWayForHazardChange)
 	s.NextAdvisorySpeed = NewUpcoming(10, 0, checkWayForAdvisorySpeedChange)
+	s.NextStopSign = NewUpcoming(10, false, checkWayForStopSignChange)
 	s.SpeedLimit.Init()
 }
-
 
 func (s *State) SuggestedSpeed() float32 {
 	suggestedSpeed := min(s.Car.VCruise*ms.KPH_TO_MS, ms.MAX_OP_SPEED)
@@ -63,6 +64,7 @@ func (s *State) UpdateCarState(carData car.CarState) {
 	s.SpeedLimit.NextLimit.Update(s)
 	s.NextAdvisorySpeed.Update(s)
 	s.NextHazard.Update(s)
+	s.NextStopSign.Update(s)
 	s.SpeedLimit.Update(s.CurrentWay, s.Car)
 }
 
@@ -96,6 +98,9 @@ func (s *State) Send() error {
 
 	output.SetNextAdvisorySpeed(s.NextAdvisorySpeed.Value)
 	output.SetNextHazardDistance(s.NextAdvisorySpeed.Distance)
+
+	output.SetNextStopSign(s.NextStopSign.Value)
+	output.SetNextStopSignDistance(s.NextStopSign.Distance)
 
 	oneWay := s.CurrentWay.Way.OneWay()
 	output.SetOneWay(oneWay)

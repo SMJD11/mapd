@@ -95,6 +95,12 @@ type Way struct {
 	hazard           u.Curry[string]
 	maxSpeedForward  u.Curry[float64]
 	maxSpeedBackward u.Curry[float64]
+	stopSigns        u.Curry[[]StopSign]
+}
+
+type StopSign struct {
+	Pos       m.Position
+	Direction offline.Direction
 }
 
 func (w *Way) IsForwardFrom(matchNode m.Position) bool {
@@ -132,6 +138,44 @@ func (w *Way) _nodes() []m.Position {
 
 func (w *Way) Nodes() []m.Position {
 	return w.nodes.Value(w._nodes)
+}
+
+func (w *Way) _stopSigns() []StopSign {
+	nodes, err := w.Way.StopSigns()
+	if err != nil {
+		return []StopSign{}
+	}
+	res := make([]StopSign, nodes.Len())
+	for i := range nodes.Len() {
+		node := nodes.At(i)
+		res[i] = StopSign{Pos: m.NewPosition(node.Latitude(), node.Longitude()), Direction: node.Direction()}
+	}
+	return res
+}
+
+func (w *Way) StopSigns() []StopSign {
+	return w.stopSigns.Value(w._stopSigns)
+}
+
+func (w *Way) HasStopSign(isForward bool) bool {
+	signs := w.StopSigns()
+	if len(signs) == 0 {
+		return false
+	}
+
+	for _, sign := range signs {
+		if sign.Direction == offline.Direction_all {
+			return true
+		}
+		if isForward && sign.Direction == offline.Direction_forward {
+			return true
+		}
+		if !isForward && sign.Direction == offline.Direction_backward {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (w *Way) _oneWay() bool {
@@ -382,7 +426,7 @@ func (w *Way) DistanceToEnd(pos m.Position, isForward bool) (float32, error) {
 	if len(nodes) == 0 {
 		return 0, nil
 	}
-	dist, _, err := w.DistanceToNode(pos, isForward, nodes[len(nodes) - 1])
+	dist, _, err := w.DistanceToNode(pos, isForward, nodes[len(nodes)-1])
 	return dist, err
 }
 

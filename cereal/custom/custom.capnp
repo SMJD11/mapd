@@ -183,4 +183,6 @@ struct MapdOut @0xa4f1eb3323f5f582 {
   mapCurveSpeed @21 :Float32;
   waySelectionType @22 :WaySelectionType;
   speedLimitAccepted @23 :Bool;
+  nextStopSign @24 :Bool;
+  nextStopSignDistance @25 :Float32;
 }

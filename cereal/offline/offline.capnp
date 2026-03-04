@@ -18,6 +18,19 @@ struct Way {
   oneWay @11 :Bool;
   maxSpeedForward @12 :Float64;
   maxSpeedBackward @13 :Float64;
+  stopSigns @14 :List(StopSign);
+}
+
+enum Direction {
+  all @0;
+  forward @1;
+  backward @2;
+}
+
+struct StopSign {
+  latitude @0 :Float64;
+  longitude @1 :Float64;
+  direction @2 :Direction;
 }
 
 struct Coordinates {
